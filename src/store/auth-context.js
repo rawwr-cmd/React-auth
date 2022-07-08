@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 let logoutTimer;
 
@@ -17,9 +17,10 @@ const calculateRemainingTime = (expirationTime) => {
 
 const retrieveStoredToken = () => {
   const storedToken = localStorage.getItem("token");
-  const storedExpirationTime = localStorage.getItem("expirationTime");
+  //   console.log(storedToken);
+  const storedExpirationDate = localStorage.getItem("expirationTime");
 
-  const remainingTime = calculateRemainingTime(storedExpirationTime);
+  const remainingTime = calculateRemainingTime(storedExpirationDate);
 
   if (remainingTime <= 3600) {
     localStorage.removeItem("token");
@@ -35,29 +36,45 @@ const retrieveStoredToken = () => {
 
 export const AuthContextProvider = (props) => {
   const tokenData = retrieveStoredToken();
-  const initialToken = localStorage.getItem("token");
+
+  let initialToken;
+  if (tokenData) {
+    initialToken = tokenData.token;
+  }
+
   const [token, setToken] = useState(initialToken);
 
   //!! converts truthy and falsy into a truthy/falsy boolean
   const userIsLoggedIn = !!token;
 
-  const logoutHandler = () => {
+  const logoutHandler = useCallback(() => {
     setToken(null);
     localStorage.removeItem("token");
+    localStorage.removeItem("expirationTime");
 
     if (logoutTimer) {
-      clearTimeOut(logoutTimer);
+      clearTimeout(logoutTimer);
     }
-  };
+  }, []);
 
   const loginHandler = (token, expirationTime) => {
     setToken(token);
     localStorage.setItem("token", token);
+    localStorage.setItem("expirationTime", expirationTime);
 
     const remainingTime = calculateRemainingTime(expirationTime);
     // console.log(remainingTime);
     logoutTimer = setTimeout(logoutHandler, remainingTime);
+    // console.log(logoutTimer);
   };
+
+  useEffect(() => {
+    if (tokenData) {
+      console.log(tokenData);
+      console.log(tokenData.duration);
+      logoutTimer = setTimeout(logoutHandler, tokenData.duration);
+    }
+  }, [tokenData, logoutHandler]);
 
   const contextValue = {
     token: token,
